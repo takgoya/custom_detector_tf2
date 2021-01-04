@@ -1,0 +1,16 @@
+{
+    "model": "C:/Users/Javi Goya/Documents/TFM/custom_detector/models/ssd_mobilenet_v2_fpnlite/saved_model",
+    "label": "C:/Users/Javi Goya/Documents/TFM/custom_detector/models/ssd_mobilenet_v2_fpnlite/ms_coco_label_map.pbtxt",
+    "use_picamera": 0,
+    "camera_warmup_time": 2.0,
+    "resolution": [640, 480],
+    "fps": 16,
+    "confidence": 0.5,
+    "threshold": 0.3,
+    "image_input": "media/images/four_person_car.jpg",
+    "image_output": "media/output/four_person_car.jpg",
+    "video_codec": "MJPG",
+    "video_input": "media/videos/calle_2.mp4",
+    "video_output": "media/output/detected_calle_2.avi",
+    "video_camera_output": "media/output/ssd_real_time.avi"
+}
