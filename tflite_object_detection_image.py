@@ -14,15 +14,18 @@
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Suppress TensorFlow logging (1)
 
-import tensorflow as tf
-tf.get_logger().setLevel('ERROR') # Suppress TensorFlow logging (2)
+import tflite_runtime.interpreter as tflite
+from tflite_runtime.interpreter import load_delegate
 
+import tensorflow as tf
+
+import argparse
+import json
 import cv2
 import numpy as np
 
-import matplotlib
-import warnings
-warnings.filterwarnings('ignore') # Suppress Matplotlib warningsfrom collections import defaultdict
+import sys
+import time
 
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as vis_util
@@ -31,10 +34,8 @@ from object_detection.utils import visualization_utils as vis_util
 from imutils.video import VideoStream
 from imutils.video import FPS
 
-import argparse
-import json
-import pathlib
-import time
+# utils functions for tesseract ocr plate recognition
+import ocr_plate_recognition
 
 '''
 Arguments
@@ -54,8 +55,12 @@ print("[INFO] loading model ...")
 start_time = time.time()
 
 # LOAD TFLITE MODEL
-interpreter = tflite.Interpreter(model_path=conf["tflite_model"])
+interpreter = tflite.Interpreter(model_path=conf["tflite_model"], 
+                                 experimental_delegates=[load_delegate('libedgetpu.so.1.0')])
 interpreter.allocate_tensors()
+
+input_details = interpreter.get_input_details()
+output_details = interpreter.get_output_details()
 
 end_time = time.time()
 elapsed_time = end_time - start_time
@@ -68,31 +73,26 @@ with open(conf["tflite_label"], 'r') as f:
 '''
 Image
 '''
-# load input image
-image = cv2.imread(conf["image_input"])
-image_np = np.array(image)
-
-print("[INFO] image loaded from file ...")
-
-'''
-Run inference
-'''
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
-
-floating_model = (input_details[0]['dtype'] == np.float32)
-
 input_mean = 127.5
 input_std = 127.5
 
 height = input_details[0]['shape'][1]
 width = input_details[0]['shape'][2]
 
+# load input image
+image = cv2.imread(conf["image_input"])
+image_height, image_width = image.shape[:2]
+
 image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 image_resized = cv2.resize(image_rgb, (width, height))
 input_data = np.expand_dims(image_resized, axis=0)
+print("[INFO] image loaded from file ...")
 
+'''
+Run inference
+'''
 # Normalize pixel values if using a floating model (i.e. if model is non-quantized)
+floating_model = (input_details[0]['dtype'] == np.float32)
 if floating_model:
     input_data = (np.float32(input_data) - input_mean) / input_std
 
@@ -128,38 +128,36 @@ for i in range(len(scores)):
         ymax = int(min(image_height,(boxes[i][2] * image_height)))
         xmax = int(min(image_width,(boxes[i][3] * image_width)))
                 
-        cv2.rectangle(image_np, (xmin,ymin), (xmax,ymax), (10, 255, 0), 2)
+        cv2.rectangle(image, (xmin,ymin), (xmax,ymax), (10, 255, 0), 2)
         
         # Draw label
         # Look up object name from "labels" array using class index
-        object_name = category_index[int(classes[i])]['name']
+        object_name = category_index[int(classes[i])]
         label = '%s: %d%%' % (object_name, int(scores[i]*100))
         labelSize, baseLine = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2) # Get font size
         label_ymin = max(ymin, labelSize[1] + 10) # Make sure not to draw label too close to top of window
-        cv2.rectangle(image_np, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin+baseLine-10), (10, 255, 0), cv2.FILLED)
+        cv2.rectangle(image, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin+baseLine-10), (10, 255, 0), cv2.FILLED)
         
         # Draw white box to put label text in
-        cv2.putText(image_np, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2) # Draw label text           '''
+        cv2.putText(image, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2) # Draw label text   
         
         #Extract the detected number plate
-        if object_name == "plate":
-            licence_img = image_np[ymin:ymax, xmin:xmax]
-            text = recognize_plate(licence_img)
-            cv2.putText(image_np, text, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
-            #cv2.imwrite('matricula_reconocida.jpg', licence_img)
+        if object_name == "licence":
+            licence_img = image[ymin:ymax, xmin:xmax]
+            text = ocr_plate_recognition.recognize_plate(licence_img)
+            cv2.putText(image, text, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
 
 '''
 Display image
 '''
 # show image
 cv2.namedWindow("Image Detections", cv2.WINDOW_NORMAL)
-cv2.imshow("Image Detections", image_np)
+cv2.imshow("Image Detections", image)
 
 # write new image with detections
-cv2.imwrite(conf["image_output"], image_np)
+cv2.imwrite(conf["image_output"], image)
 
 # wait for any key being pressed
 cv2.waitKey(0)
 # destroy opened window
 cv2.destroyWindow("Image Detections") 
-
