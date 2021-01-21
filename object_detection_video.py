@@ -36,6 +36,9 @@ import json
 import pathlib
 import time
 
+# utils functions for tesseract ocr plate recognition
+import ocr_plate_recognition
+
 '''
 Arguments
 '''
@@ -46,95 +49,6 @@ ap.add_argument("-c", "--conf", required=True, help="path to the JSON configurat
 args = vars(ap.parse_args())
 # load the configuration
 conf = json.load(open(args["conf"]))
-
-'''
-Recognize plate
-'''
-def recognize_plate(image):
-    #cv2.imwrite("media/output/matricula_extraida.jpg", image)
-    # resize image to three times as large as original for better readability
-    image_resized = cv2.resize(image, None, fx = 3, fy = 3, interpolation = cv2.INTER_CUBIC)
-    #cv2.imwrite("media/output/matricula_resized.jpg", image_resized)
-    
-    # convert to grayscale
-    gray = cv2.cvtColor(image_resized, cv2.COLOR_RGB2GRAY)
-    #cv2.imwrite("media/output/matricula_gray.jpg", gray)
-    
-    # perform gaussian blur to smoothen image
-    blur = cv2.GaussianBlur(gray, (7,7), 0)
-    #cv2.imwrite("media/output/matricula_blurred.jpg", blur)
-    
-    # threshold the image using Otsus method to preprocess for tesseract
-    ret, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU + cv2.THRESH_BINARY_INV)
-    #cv2.imwrite("media/output/matricula_thresh.jpg", thresh)
-    
-    # create rectangular kernel for dilation
-    rect_kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
-    
-    # apply dilation to make regions more clear
-    #dilation = cv2.dilate(thresh, rect_kern, iterations = 1)
-    #cv2.imwrite("media/output/matricula_dilation.jpg", dilation)
-
-    #opening = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, rect_kern)
-    #cv2.imwrite("media/output/matricula_opening.jpg", opening)
-
-    # find contours of regions of interest within license plate
-    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    # sort contours left-to-right
-    sorted_contours = sorted(contours, key=lambda ctr: cv2.boundingRect(ctr)[0])
-    
-    # create blank string to hold license plate number
-    plate_num = ""
-    
-    i = 0
-    # loop through contours and find individual letters and numbers in license plate
-    for cnt in sorted_contours:
-        x,y,w,h = cv2.boundingRect(cnt)
-        
-        height, width = gray.shape
-        # if height of box is not tall enough relative to total height then skip
-        if height / float(h) > 3: continue
-
-        ratio = h / float(w)
-        # if height to width ratio is less than 1.5 skip
-        if ratio < 1.5: continue
-
-        # if width is not wide enough relative to total width then skip
-        #if width / float(w) > 15: continue
-
-        area = h * w
-        # if area is less than 100 pixels skip
-        if area < 100: continue
-
-        i = i+1
-        
-        # draw the rectangle
-        rect = cv2.rectangle(gray, (x,y), (x+w, y+h), (0,255,0),2)
-        cv2.imwrite("media/output/matricula_contours.jpg", gray)
-
-        # grab character region of image
-        roi = thresh[y-7:y+h+7, x-7:x+w+7]
-        # perfrom bitwise not to flip image to black text on white background
-        roi = cv2.bitwise_not(roi)
-        # perform another blur on character region
-        #roi = cv2.medianBlur(roi, 5)
-        #roi_filename = "media/output/roi"+str(i)+".jpg"
-        #cv2.imwrite(roi_filename, roi)
-        
-        try:
-            alphanumeric = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-            options = "-c tessedit_char_whitelist={}".format(alphanumeric)
-            options += " --psm {}".format(8) # Page segmentation modes: 8 = Treat the image as a single word.
-            options += "--oem {}".format(1) # OCR Engine modes: 1 = Neural nets LSTM engine only.
-            text = pytesseract.image_to_string(roi, config=options)
-            
-            # clean tesseract text by removing any unwanted blank spaces
-            clean_text = re.sub('[\W_]+', '', text)
-            plate_num += clean_text
-        except: 
-            text = None
-    
-    return(plate_num)
 
 '''
 Load model and labels
@@ -261,7 +175,7 @@ while True:
             #Extract the detected number plate
             if object_name == "plate":
                 licence_img = frame_np[ymin:ymax, xmin:xmax]
-                text = recognize_plate(licence_img)
+                text = ocr_plate_recognition.recognize_plate(licence_img)
                 cv2.putText(frame_np, text, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
                 #cv2.imwrite('matricula_reconocida.jpg', licence_img)
 

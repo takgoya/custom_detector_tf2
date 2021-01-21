@@ -36,6 +36,9 @@ import json
 import pathlib
 import time
 
+# utils functions for tesseract ocr plate recognition
+import ocr_plate_recognition
+
 '''
 Arguments
 '''
@@ -154,7 +157,7 @@ while True:
             #Extract the detected number plate
             if object_name == "plate":
                 licence_img = frame_np[ymin:ymax, xmin:xmax]
-                text = recognize_plate(licence_img)
+                text = ocr_plate_recognition.recognize_plate(licence_img)
                 cv2.putText(frame_np, text, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
                 #cv2.imwrite('matricula_reconocida.jpg', licence_img)
     
