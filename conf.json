@@ -1,7 +1,9 @@
 {
     "model": "models/ssd_mobilenet_v2_fpnlite_320_320_background/saved_model",
     "label": "models/ssd_mobilenet_v2_fpnlite_320_320_background/label_map.pbtxt",
-    "tflite_model": "tflite_models/tflite_ssd_mobilenet_v2_fpnlite_320_320_background/model_quant_edgetpu.tflite",
+    "use_tpu": 0,
+    "tflite_model": "tflite_models/tflite_ssd_mobilenet_v2_fpnlite_320_320_background/model.tflite",
+    "tflite_model_tpu": "tflite_models/tflite_ssd_mobilenet_v2_fpnlite_320_320_background/model_quant_edgetpu.tflite",
     "tflite_label": "tflite_models/tflite_ssd_mobilenet_v2_fpnlite_320_320_background/tflite_labels.txt",
     "use_picamera": 1,
     "camera_warmup_time": 2.0,
@@ -10,9 +12,9 @@
     "confidence": 0.5,
     "threshold": 0.5,
     "image_input": "media/images/image_1.jpg",
-    "image_output": "media/output/image_1(tflite_quant).jpg",
+    "image_output": "media/output/image_1.jpg",
     "video_codec": "MJPG",
     "video_input": "media/videos/calle_2.mp4",
-    "video_output": "media/output/calle_2.avi",
+    "video_output": "media/output/calle_2(goya_tflite).avi",
     "video_camera_output": "media/output/camera_detections.avi"
 }

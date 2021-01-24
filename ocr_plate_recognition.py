@@ -115,29 +115,29 @@ Recognize plate
 def recognize_plate(image):
     # resize image to three times as large as original for better readability
     image_resized = resize_image(image, 3, 3)
-    cv2.imwrite("media/output/matricula_resized.jpg", image_resized)
+    #cv2.imwrite("media/output/matricula_resized.jpg", image_resized)
     
     # convert to grayscale
     gray = convert_grayscale(image_resized)
-    cv2.imwrite("media/output/matricula_gray.jpg", gray)
+    #cv2.imwrite("media/output/matricula_gray.jpg", gray)
     
     # remove noise
     blurred = remove_noise(gray)
-    cv2.imwrite("media/output/matricula_blurred.jpg", blurred)
+    #cv2.imwrite("media/output/matricula_blurred.jpg", blurred)
 
     # create rectangular kernel for morphological operations
     rect_kern = cv2.getStructuringElement(cv2.MORPH_RECT, (5,5))
 
     # apply erosion to make regions more clear
     erosion = erosion_morph(blurred, rect_kern, iterations = 1)
-    cv2.imwrite("media/output/matricula_erosion.jpg", erosion)
+    #cv2.imwrite("media/output/matricula_erosion.jpg", erosion)
 
     # threshold the image using Otsus method to preprocess for tesseract
     ret, thresh = binary_thresholding(erosion)
-    cv2.imwrite("media/output/matricula_thresh.jpg", thresh)
+    #cv2.imwrite("media/output/matricula_thresh.jpg", thresh)
     
     opening = opening_morph(thresh, rect_kern)
-    cv2.imwrite("media/output/matricula_opening.jpg", opening)
+    #cv2.imwrite("media/output/matricula_opening.jpg", opening)
 
     # find contours of regions of interest within license plate
     contours = get_contours(thresh)
@@ -160,14 +160,14 @@ def recognize_plate(image):
         
         # draw the rectangle
         rect = cv2.rectangle(gray, (x,y), (x+w, y+h), (0,255,0),2)
-        cv2.imwrite("media/output/matricula_contours.jpg", gray)
+        #cv2.imwrite("media/output/matricula_contours.jpg", gray)
         
         # region of interest
         roi = get_roi(thresh, x, y, w, h)
         
         # show each roi as an img
-        roi_filename = "media/output/roi"+str(i)+".jpg"
-        cv2.imwrite(roi_filename, roi)
+        #roi_filename = "media/output/roi"+str(i)+".jpg"
+        #cv2.imwrite(roi_filename, roi)
         
         # tesseract character recognition
         options = tesseract_options(psm=8, oem=1)

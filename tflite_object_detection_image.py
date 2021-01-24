@@ -55,8 +55,13 @@ print("[INFO] loading model ...")
 start_time = time.time()
 
 # LOAD TFLITE MODEL
-interpreter = tflite.Interpreter(model_path=conf["tflite_model"], 
-                                 experimental_delegates=[load_delegate('libedgetpu.so.1.0')])
+use_tpu = conf["use_tpu"]
+if use_tpu == 1:
+    interpreter = tflite.Interpreter(model_path=conf["tflite_model_tpu"], 
+                                     experimental_delegates=[load_delegate('libedgetpu.so.1.0')])
+else:
+    interpreter = tflite.Interpreter(model_path=conf["tflite_model"])
+
 interpreter.allocate_tensors()
 
 input_details = interpreter.get_input_details()
