@@ -4,18 +4,18 @@ Output: tflite_models/ssd_mobilenet_v2_fpnlite_320_320/model_quant_edgetpu.tflit
 
 Operator                       Count      Status
 
+DEQUANTIZE                     2          Operation is working on an unsupported data type
+CONV_2D                        58         Mapped to Edge TPU
+CONV_2D                        14         More than one subgraph is not supported
+QUANTIZE                       4          More than one subgraph is not supported
+QUANTIZE                       7          Mapped to Edge TPU
 LOGISTIC                       1          More than one subgraph is not supported
-CONCATENATION                  2          More than one subgraph is not supported
-RESHAPE                        6          More than one subgraph is not supported
-RESHAPE                        6          Mapped to Edge TPU
-PACK                           4          Tensor has unsupported rank (up to 3 innermost dimensions mapped)
 ADD                            10         Mapped to Edge TPU
 ADD                            2          More than one subgraph is not supported
 CUSTOM                         1          Operation is working on an unsupported data type
-QUANTIZE                       6          Mapped to Edge TPU
-QUANTIZE                       4          More than one subgraph is not supported
-CONV_2D                        58         Mapped to Edge TPU
-CONV_2D                        14         More than one subgraph is not supported
-DEQUANTIZE                     2          Operation is working on an unsupported data type
+PACK                           4          Tensor has unsupported rank (up to 3 innermost dimensions mapped)
+RESHAPE                        6          More than one subgraph is not supported
+RESHAPE                        6          Mapped to Edge TPU
+CONCATENATION                  2          More than one subgraph is not supported
 DEPTHWISE_CONV_2D              14         More than one subgraph is not supported
 DEPTHWISE_CONV_2D              37         Mapped to Edge TPU
