@@ -6,12 +6,12 @@ item {
 item {
      id:2
      name:"car"
-     display_name:"car"
+     display_name:"coche"
 }
 item {
      id:3
      name:"licence"
-     display_name:"plate"
+     display_name:"matricula"
 }
 item {
      id:4
