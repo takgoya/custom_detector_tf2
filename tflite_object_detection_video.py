@@ -37,6 +37,12 @@ from imutils.video import FPS
 # utils functions for tesseract ocr plate recognition
 import ocr_plate_recognition
 
+# utils functions for db
+from db import db_utils
+
+# utils functions for gps
+from gps import gps_utils
+
 '''
 Arguments
 '''
@@ -47,6 +53,12 @@ ap.add_argument("-c", "--conf", required=True, help="path to the JSON configurat
 args = vars(ap.parse_args())
 # load the configuration
 conf = json.load(open(args["conf"]))
+
+'''
+GPS
+'''
+if (conf["use_gps"]):
+    gps_socket, data_stream = gps_utils.init_gps()
 
 '''
 Load model and labels
@@ -84,6 +96,26 @@ with open(conf["tflite_label"], 'r') as f:
     category_index = [line.strip() for line in f.readlines()]
 
 '''
+Prepare DB
+'''
+# Create (if not exists) DB connection
+conn = db_utils.create_connection(conf["db"])
+
+if conn != None:
+    # Create (if not exists) RECORDINGS table
+    db_utils.create_recordings_table(conn)
+    # Create (if not exists) DETECTIONS table
+    db_utils.create_detections_table(conn)
+    print("[INFO] DB configured")
+else:
+    print("[INFO] error while configuring DB")
+
+# Generate recording entry name
+recording_name = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
+# Insert recording into RECORDINGS table
+recording_id = db_utils.insert_recording(conn, recording_name)
+
+'''
 Input video 
 '''
 print("[INFO] loading video from file ...")
@@ -95,6 +127,9 @@ frame_height = int(vs.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 # prepare variable for writer that we will use to write processed frames
 writer = None
+
+# Name for generated videofile
+recording_path = conf["video_output"] + "/" + recording_name + ".avi" 
 
 # try to determine the total number of frames in the video file
 try:
@@ -111,9 +146,10 @@ except:
 Read frames in the loop
 '''
 # variable for counting frames
-f = 0
-# variable for counting total time
-t = 0
+f_count = 0
+
+# variable for counting time
+start_time = time.time()
 
 # loop over frames from the video file stream
 while True:
@@ -126,9 +162,7 @@ while True:
     # if the frame was not grabbed, then end of the stream
     if not grabbed:
         break
-        
-    start = time.time()
-
+    
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     frame_resized = cv2.resize(frame_rgb, (width, height))
     input_data = np.expand_dims(frame_resized, axis=0)
@@ -163,6 +197,9 @@ while True:
     nms_indices = tf.image.non_max_suppression(boxes, scores, length, conf["threshold"])
     nms_boxes = tf.gather(boxes, nms_indices)
 
+    # dictionary for db
+    db_detections = {}
+    
     for i in range(len(scores)):
         if ((scores[i] > conf["confidence"]) and (scores[i] <= 1.0)):
             # Get bounding box coordinates and draw box
@@ -186,21 +223,25 @@ while True:
             # Draw white box to put label text in
             cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2) # Draw label text   
 
+            plate_num = ""
             #Extract the detected number plate
             if object_name == "licence":
-                licence_img = frame[ymin:ymax, xmin:xmax]
+                licence_img = frame_np[ymin:ymax, xmin:xmax]
                 image_h, image_w = licence_img.shape[:2]
                 if image_w != 0 and image_h != 0:
                     plate_num = ocr_plate_recognition.recognize_plate(licence_img)
-                    cv2.putText(frame, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
+                    cv2.putText(frame_np, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
                     if plate_num != "":
-                        print("[INFO] recognize_plate ... plate = {} and confidence = {}".format(plate_num, scores[i]))
-    
-    end = time.time()
+                        print("[INFO] licence recognition = {}".format(plate_num))
+                        if (i-1) >= 0:
+                            db_detections[plate_num] = category_index[int(classes[i-1])]['name']
+                        else:
+                            db_detections[plate_num] = category_index[int(classes[i+1])]['name']
+
+    elapsed_time = round(time.time() - start_time, 2)
     
     # increase counters for frames and total time
-    f += 1
-    t += end - start
+    f_count += 1
     
     '''
     Write processed frame into file
@@ -219,15 +260,31 @@ while True:
     # write processed current frame to the file
     writer.write(frame)
 
+    '''
+    Insert into DB
+    '''
+    # get gps position
+    gps_lat = gps_lon = 0
+    if (conf["use_gps"]):
+        gps_lat, gps_lon = gps_utils.get_position(gps_socket, data_stream)
+
+    # get detection time
+    detection_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
+
+    # add entry to db
+    for key, value in db_detections.items():
+        detection = (recording_id, value, key, gps_lat, gps_lon, elapsed_time, f_count, detection_datetime)
+        db_utils.insert_detection(conn, detection)
 
 '''
 Finish
 '''
+end_time = time.time()
+
 # print final results
-print()
-print("[INFO] total number of frames", f)
-print("[INFO] total amount of time {:.5f} seconds".format(t))
-print("[INFO] fps:", round((f / t), 1))
+print("[INFO] total number of frames", f_count)
+print("[INFO] total amount of time {:.5f} seconds".format(end_time - start_time))
+print("[INFO] fps:", round((f_count / (end_time - start_time)), 1))
 print()
 
 # do a bit of cleanup
