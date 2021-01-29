@@ -39,6 +39,12 @@ import time
 # utils functions for tesseract ocr plate recognition
 import ocr_plate_recognition
 
+# utils functions for db
+from db import db_utils
+
+# utils functions for gps
+from gps import gps_utils
+
 '''
 Arguments
 '''
@@ -51,9 +57,14 @@ args = vars(ap.parse_args())
 conf = json.load(open(args["conf"]))
 
 '''
+GPS
+'''
+if (conf["use_gps"]):
+    gps_socket, data_stream = gps_utils.init_gps()
+    
+'''
 Load model and labels
 '''
-
 print("[INFO] loading model ...")
 start_time = time.time()
 # Load saved model and build the detection function
@@ -86,8 +97,37 @@ h, w = None, None
 print("[INFO] starting video from camera ...")
 
 '''
-Read frames in the loop
+Prepare DB
 '''
+# Create (if not exists) DB connection
+conn = db_utils.create_connection(conf["db"])
+
+if conn != None:
+    # Create (if not exists) RECORDINGS table
+    db_utils.create_recordings_table(conn)
+    # Create (if not exists) DETECTIONS table
+    db_utils.create_detections_table(conn)
+    print("[INFO] DB configured")
+else:
+    print("[INFO] error while configuring DB")
+
+# Generate recording entry name
+recording_name = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
+# Insert recording into RECORDINGS table
+recording_id = db_utils.insert_recording(conn, recording_name)
+    
+'''
+Input video 
+'''
+# Name for generated videofile
+recording_path = conf["video_camera_output"] + "/" + recording_name + ".mp4" 
+
+# variable for counting frames
+f_count = 0
+
+# variable for counting time
+start_time = time.time()
+
 # loop over frames from the video file stream
 while True:
     # read the next frame from the file
@@ -130,6 +170,9 @@ while True:
     nms_indices = tf.image.non_max_suppression(boxes, scores, length, conf["threshold"])
     nms_boxes = tf.gather(boxes, nms_indices)
     
+    # dictionary for db
+    db_detections = {}
+    
     for i in range(len(scores)):
         if ((scores[i] > conf["threshold"]) and (scores[i] <= 1.0)):
             # Get bounding box coordinates and draw box
@@ -154,26 +197,61 @@ while True:
             # Draw white box to put label text in
             cv2.putText(frame_np, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2) # Draw label text           '''
 
+            plate_num = ""
             #Extract the detected number plate
-            if object_name == "plate":
+            if object_name == "licence":
                 licence_img = frame_np[ymin:ymax, xmin:xmax]
-                text = ocr_plate_recognition.recognize_plate(licence_img)
-                cv2.putText(frame_np, text, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
-                #cv2.imwrite('matricula_reconocida.jpg', licence_img)
-    
+                image_h, image_w = licence_img.shape[:2]
+                if image_w != 0 and image_h != 0:
+                    plate_num = ocr_plate_recognition.recognize_plate(licence_img)
+                    cv2.putText(frame_np, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
+                    if plate_num != "":
+                        print("[INFO] licence recognition = {}".format(plate_num))
+                        if (i-1) >= 0:
+                            db_detections[plate_num] = category_index[int(classes[i-1])]['name']
+                        else:
+                            db_detections[plate_num] = category_index[int(classes[i+1])]['name']
+
     cv2.namedWindow("Camera Detections", cv2.WINDOW_NORMAL)
     cv2.imshow("Camera Detections", frame_np)
     
     fps.update()
+    
+    elapsed_time = round(time.time() - start_time, 2)
+    
+    # increase counters for frames and total time
+    f_count += 1    
 
+    '''
+    Write processed frame into file
+    '''
     if writer is None:
         # initialize video writer
         fourcc = cv2.VideoWriter_fourcc(*conf["video_codec"])
-        writer = cv2.VideoWriter(conf["video_camera_output"], fourcc, 16, (frame.shape[1], frame.shape[0]), True)
+        writer = cv2.VideoWriter(recording_path, fourcc, 16, (frame.shape[1], frame.shape[0]), True)
 
     # write processed current frame to the file
     writer.write(frame)
 
+    '''
+    Insert into DB
+    '''
+    # get gps position
+    gps_lat = gps_lon = 0
+    if (conf["use_gps"]):
+        gps_lat, gps_lon = gps_utils.get_position(gps_socket, data_stream)
+
+    # get detection time
+    detection_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
+
+    # add entry to db
+    for key, value in db_detections.items():
+        detection = (recording_id, value, key, gps_lat, gps_lon, elapsed_time, f_count, detection_datetime)
+        db_utils.insert_detection(conn, detection)
+
+    '''
+    Break from loop
+    '''
     key = cv2.waitKey(1) & 0xFF
     # if the "Esc" key was pressed, break from the loop
     if key == (ord("q")) or key == 27:
@@ -182,6 +260,8 @@ while True:
 '''
 Finish
 '''
+end_time = time.time()
+
 # stop the timer and display FPS information
 fps.stop()
 print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
