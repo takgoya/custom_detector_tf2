@@ -149,15 +149,15 @@ for i in range(len(scores)):
         
         # Draw white box to put label text in
         cv2.putText(image, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2) # Draw label text   
-        
         #Extract the detected number plate
         if object_name == "licence":
-            licence_img = image[ymin:ymax, xmin:xmax]
+            licence_img = image_np[ymin:ymax, xmin:xmax]
             image_h, image_w = licence_img.shape[:2]
             if image_w != 0 and image_h != 0:
-                text = ocr_plate_recognition.recognize_plate(licence_img, width, height)
-                print("[INFO] recognize_plate ... plate = {} with confidence = {} ".format(text, scores[i]))
-                cv2.putText(image, text, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
+                plate_num = ocr_plate_recognition.recognize_plate(licence_img)
+                cv2.putText(image_np, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
+                if plate_num != "":
+                    print("[INFO] licence recognition = {}".format(plate_num))
 
 '''
 Display image
