@@ -1,0 +1,6 @@
+bus
+car
+licence
+moto
+truck
+van
