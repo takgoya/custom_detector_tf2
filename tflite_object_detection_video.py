@@ -66,7 +66,9 @@ interpreter.allocate_tensors()
 
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
-    
+
+print("[INFO] input details: {}".format(input_details))
+
 input_mean = 127.5
 input_std = 127.5
 
@@ -187,8 +189,12 @@ while True:
             #Extract the detected number plate
             if object_name == "licence":
                 licence_img = frame[ymin:ymax, xmin:xmax]
-                text = ocr_plate_recognition.recognize_plate(licence_img)
-                cv2.putText(frame, text, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
+                image_h, image_w = licence_img.shape[:2]
+                if image_w != 0 and image_h != 0:
+                    plate_num = ocr_plate_recognition.recognize_plate(licence_img)
+                    cv2.putText(frame, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
+                    if plate_num != "":
+                        print("[INFO] recognize_plate ... plate = {} and confidence = {}".format(plate_num, scores[i]))
     
     end = time.time()
     
