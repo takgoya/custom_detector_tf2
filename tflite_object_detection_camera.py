@@ -26,6 +26,7 @@ import numpy as np
 
 import sys
 import time
+import datetime
 
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as vis_util
@@ -103,6 +104,9 @@ print("[INFO] starting video from camera ...")
 # prepare variable for writer that we will use to write processed frames
 writer = None
 
+filename = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
+filepath = conf["video_camera_output"] + "/" + filename + ".avi" 
+
 '''
 Read frames in the loop
 '''
@@ -177,8 +181,10 @@ while True:
             #Extract the detected number plate
             if object_name == "licence":
                 licence_img = frame[ymin:ymax, xmin:xmax]
-                text = ocr_plate_recognition.recognize_plate(licence_img)
-                cv2.putText(frame, text, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
+                image_h, image_w = licence_img.shape[:2]
+                if image_w != 0 and image_h != 0:
+                    plate_num = ocr_plate_recognition.recognize_plate(licence_img, width, height)
+                    cv2.putText(frame, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
     
     cv2.namedWindow("Camera Detections", cv2.WINDOW_NORMAL)
     cv2.imshow("Camera Detections", frame)
@@ -188,7 +194,7 @@ while True:
     if writer is None:
         # initialize video writer
         fourcc = cv2.VideoWriter_fourcc(*conf["video_codec"])
-        writer = cv2.VideoWriter(conf["video_camera_output"], fourcc, 16, (frame.shape[1], frame.shape[0]), True)
+        writer = cv2.VideoWriter(filepath, fourcc, 8, (frame.shape[1], frame.shape[0]), True)
 
     # write processed current frame to the file
     writer.write(frame)
