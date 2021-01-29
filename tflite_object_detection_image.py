@@ -57,15 +57,19 @@ start_time = time.time()
 # LOAD TFLITE MODEL
 use_tpu = conf["use_tpu"]
 if use_tpu == 1:
+    print("[INFO] use_tpu true")
     interpreter = tflite.Interpreter(model_path=conf["tflite_model_tpu"], 
                                      experimental_delegates=[load_delegate('libedgetpu.so.1.0')])
 else:
+    print("[INFO] use_tpu false")
     interpreter = tflite.Interpreter(model_path=conf["tflite_model"])
 
 interpreter.allocate_tensors()
 
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
+
+print("[INFO] input details: {}".format(input_details))
 
 end_time = time.time()
 elapsed_time = end_time - start_time
@@ -149,8 +153,11 @@ for i in range(len(scores)):
         #Extract the detected number plate
         if object_name == "licence":
             licence_img = image[ymin:ymax, xmin:xmax]
-            text = ocr_plate_recognition.recognize_plate(licence_img)
-            cv2.putText(image, text, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
+            image_h, image_w = licence_img.shape[:2]
+            if image_w != 0 and image_h != 0:
+                text = ocr_plate_recognition.recognize_plate(licence_img, width, height)
+                print("[INFO] recognize_plate ... plate = {} with confidence = {} ".format(text, scores[i]))
+                cv2.putText(image, text, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
 
 '''
 Display image
