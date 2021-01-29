@@ -53,7 +53,6 @@ conf = json.load(open(args["conf"]))
 '''
 Load model and labels
 '''
-
 print("[INFO] loading model ...")
 start_time = time.time()
 # Load saved model and build the detection function
@@ -129,12 +128,15 @@ for i in range(len(scores)):
         cv2.putText(image_np, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2) # Draw label text           '''
         
         #Extract the detected number plate
-        if object_name == "plate":
+        if object_name == "licence":
             licence_img = image_np[ymin:ymax, xmin:xmax]
-            text = ocr_plate_recognition.recognize_plate(licence_img)
-            cv2.putText(image_np, text, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
-            #cv2.imwrite('matricula_reconocida.jpg', licence_img)
-        
+            image_h, image_w = licence_img.shape[:2]
+            if image_w != 0 and image_h != 0:
+                plate_num = ocr_plate_recognition.recognize_plate(licence_img)
+                cv2.putText(image_np, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
+                if plate_num != "":
+                    print("[INFO] licence recognition = {}".format(plate_num))
+
 '''
 Display image
 '''
