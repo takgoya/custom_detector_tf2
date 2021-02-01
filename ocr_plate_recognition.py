@@ -76,16 +76,6 @@ def get_contours(image):
     return sorted_contours
 
 '''
-Background
-'''
-def is_black_background(image):
-    is_black = True
-    image_h, image_w = image.shape[:2]
-    if cv2.countNonZero(image) > ((image_w*image_h)//2):
-        is_black = False
-    return is_black
-
-'''
 Tesseract options
 '''
 def tesseract_options(psm, oem):
@@ -117,26 +107,19 @@ def recognize_plate(image):
     blurred = remove_noise(gray)
     #cv2.imwrite("media/output/matricula_blurred.jpg", blurred)
 
-    # create rectangular kernel for morphological operations
-    rect_kern = cv2.getStructuringElement(cv2.MORPH_RECT, (2,2))
-
-    erosion = erosion_morph(blurred, rect_kern)
-    #cv2.imwrite("media/output/matricula_erosion.jpg", erosion)
-
     # threshold the image using Otsus method to preprocess for tesseract
-    ret, thresh = binary_thresholding(erosion)    
+    ret, thresh = binary_thresholding(blurred)    
     #cv2.imwrite("media/output/matricula_thresh.jpg", thresh)
     
-    dilation = erosion_morph(thresh, rect_kern)
-    #cv2.imwrite("media/output/matricula_erosion.jpg", erosion)
+    # create rectangular kernel for morphological operations
+    rect_kern = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
 
-    # check if bitwise is needed
-    if is_black_background(dilation):
-        dilation = cv2.bitwise_not(dilation)
+    opening = opening_morph(thresh, rect_kern)
+    #cv2.imwrite("media/output/matricula_opening.jpg", opening)
 
-    '''
+
     # find contours of regions of interest within license plate
-    contours = get_contours(thresh)
+    contours = get_contours(opening)
 
     i = 0
     # loop through contours and find individual letters and numbers in license plate
@@ -154,13 +137,12 @@ def recognize_plate(image):
         #cv2.imwrite("media/output/matricula_contours.jpg", gray)
         
         # region of interest
-        roi = dilation[y-7:y+h+7, x-7:x+w+7]
-        #if is_black:
-        #    roi = cv2.bitwise_not(roi)
+        roi = opening[y-8:y+h+8, x-8:x+w+8]
+        roi = cv2.bitwise_not(roi)
         
         # show each roi as an img
-        roi_filename = "media/output/roi"+str(i)+".jpg"
-        cv2.imwrite(roi_filename, roi)
+        #roi_filename = "media/output/roi"+str(i)+".jpg"
+        #cv2.imwrite(roi_filename, roi)
         
         # tesseract character recognition
         options = tesseract_options(psm=8, oem=3)
@@ -173,18 +155,17 @@ def recognize_plate(image):
         except:
             text = None
     
-    '''
-    
-    # tesseract character recognition
-    options = tesseract_options(psm=7, oem=3)
-    try:
-        text = pytesseract.image_to_string(dilation, config=options)
+    if plate_num == "":
+        # tesseract character recognition
+        options = tesseract_options(psm=7, oem=3)
+        try:
+            text = pytesseract.image_to_string(opening, config=options)
 
-        # clean tesseract text by removing any unwanted blank spaces
-        clean_text = re.sub('[\W_]+', '', text)
-        plate_num += clean_text
-    except:
-        text = None
+            # clean tesseract text by removing any unwanted blank spaces
+            clean_text = re.sub('[\W_]+', '', text)
+            plate_num += clean_text
+        except:
+            text = None
 
     if len(plate_num) >= 6:
         return(plate_num)
