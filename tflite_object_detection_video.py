@@ -26,6 +26,7 @@ import numpy as np
 
 import sys
 import time
+import datetime
 
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as vis_util
@@ -226,17 +227,17 @@ while True:
             plate_num = ""
             #Extract the detected number plate
             if object_name == "licence":
-                licence_img = frame_np[ymin:ymax, xmin:xmax]
+                licence_img = frame[ymin:ymax, xmin:xmax]
                 image_h, image_w = licence_img.shape[:2]
                 if image_w != 0 and image_h != 0:
                     plate_num = ocr_plate_recognition.recognize_plate(licence_img)
-                    cv2.putText(frame_np, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
+                    cv2.putText(frame, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
                     if plate_num != "":
                         print("[INFO] licence recognition = {}".format(plate_num))
                         if (i-1) >= 0:
-                            db_detections[plate_num] = category_index[int(classes[i-1])]['name']
+                            db_detections[plate_num] = category_index[int(classes[i-1])]
                         else:
-                            db_detections[plate_num] = category_index[int(classes[i+1])]['name']
+                            db_detections[plate_num] = category_index[int(classes[i+1])]
 
     elapsed_time = round(time.time() - start_time, 2)
     
@@ -249,13 +250,7 @@ while True:
     if writer is None:
         # initialize video writer
         fourcc = cv2.VideoWriter_fourcc(*conf["video_codec"])
-        writer = cv2.VideoWriter(conf["video_output"], fourcc, 32, (frame_width, frame_height), True)
-        
-        # some information on processing single frame
-        if total > 0:
-            elap = (end - start)
-            print("[INFO] single frame took {:.4f} seconds".format(elap))
-            print("[INFO] estimated total time to finish: {:.4f}".format(elap * total))
+        writer = cv2.VideoWriter(recording_path, fourcc, 32, (frame_width, frame_height), True)
 
     # write processed current frame to the file
     writer.write(frame)
@@ -263,18 +258,19 @@ while True:
     '''
     Insert into DB
     '''
-    # get gps position
-    gps_lat = gps_lon = 0
-    if (conf["use_gps"]):
-        gps_lat, gps_lon = gps_utils.get_position(gps_socket, data_stream)
+    if any(db_detections):
+        # get gps position
+        gps_lat = gps_lon = 0
+        if (conf["use_gps"]):
+            gps_lat, gps_lon = gps_utils.get_position(gps_socket, data_stream)
 
-    # get detection time
-    detection_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
+        # get detection time
+        detection_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
 
-    # add entry to db
-    for key, value in db_detections.items():
-        detection = (recording_id, value, key, gps_lat, gps_lon, elapsed_time, f_count, detection_datetime)
-        db_utils.insert_detection(conn, detection)
+        # add entry to db
+        for key, value in db_detections.items():
+            detection = (recording_id, value, key, gps_lat, gps_lon, elapsed_time, f_count, detection_datetime)
+            db_utils.insert_detection(conn, detection)
 
 '''
 Finish

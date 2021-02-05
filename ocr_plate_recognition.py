@@ -114,32 +114,34 @@ def recognize_plate(image):
     # create rectangular kernel for morphological operations
     rect_kern = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
 
-    opening = opening_morph(thresh, rect_kern)
-    #cv2.imwrite("media/output/matricula_opening.jpg", opening)
-
+    dilation = dilation_morph(thresh, rect_kern)
+    #cv2.imwrite("media/output/matricula_dilation.jpg", dilation)
 
     # find contours of regions of interest within license plate
-    contours = get_contours(opening)
+    contours = get_contours(dilation)
 
     i = 0
     # loop through contours and find individual letters and numbers in license plate
     for cnt in contours:
         x,y,w,h = cv2.boundingRect(cnt)
-
-        # filter by height of the contour
-        if w >h or w*h < 100 or image_h/h > 3:
+        
+        # avoid beginning of the plate (country id)
+        if x < int(image_w/25):
             continue
-        
-        i = i+1
-        
+    
+        # filter by width and height of the contour
+        if w> image_w/2 or w*h < 100 or image_h/h > 2.5 or h/image_h > 0.7:
+            continue
+
         # draw the rectangle
         rect = cv2.rectangle(gray, (x,y), (x+w, y+h), (0,255,0),2)
         #cv2.imwrite("media/output/matricula_contours.jpg", gray)
         
         # region of interest
-        roi = opening[y-8:y+h+8, x-8:x+w+8]
+        roi = dilation[y-5:y+h+5, x-5:x+w+5]
         roi = cv2.bitwise_not(roi)
         
+        i = i+1
         # show each roi as an img
         #roi_filename = "media/output/roi"+str(i)+".jpg"
         #cv2.imwrite(roi_filename, roi)

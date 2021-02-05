@@ -220,20 +220,20 @@ while True:
             plate_num = ""
             #Extract the detected number plate
             if object_name == "licence":
-                licence_img = frame_np[ymin:ymax, xmin:xmax]
+                licence_img = frame[ymin:ymax, xmin:xmax]
                 image_h, image_w = licence_img.shape[:2]
                 if image_w != 0 and image_h != 0:
                     plate_num = ocr_plate_recognition.recognize_plate(licence_img)
-                    cv2.putText(frame_np, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
+                    cv2.putText(frame, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
                     if plate_num != "":
                         print("[INFO] licence recognition = {}".format(plate_num))
                         if (i-1) >= 0:
-                            db_detections[plate_num] = category_index[int(classes[i-1])]['name']
+                            db_detections[plate_num] = category_index[int(classes[i-1])]
                         else:
-                            db_detections[plate_num] = category_index[int(classes[i+1])]['name']
+                            db_detections[plate_num] = category_index[int(classes[i+1])]
     
-    cv2.namedWindow("Camera Detections", cv2.WINDOW_NORMAL)
-    cv2.imshow("Camera Detections", frame)
+    #cv2.namedWindow("Camera Detections", cv2.WINDOW_NORMAL)
+    #cv2.imshow("Camera Detections", frame)
     
     fps.update()
 
@@ -248,7 +248,7 @@ while True:
     if writer is None:
         # initialize video writer
         fourcc = cv2.VideoWriter_fourcc(*conf["video_codec"])
-        writer = cv2.VideoWriter(filepath, fourcc, 8, (frame.shape[1], frame.shape[0]), True)
+        writer = cv2.VideoWriter(recording_path, fourcc, 3, (frame.shape[1], frame.shape[0]), True)
 
     # write processed current frame to the file
     writer.write(frame)
