@@ -35,6 +35,7 @@ import argparse
 import json
 import pathlib
 import time
+import datetime
 
 # utils functions for tesseract ocr plate recognition
 import ocr_plate_recognition
@@ -53,13 +54,13 @@ conf = json.load(open(args["conf"]))
 '''
 Load model and labels
 '''
-print("[INFO] loading model ...")
+print("[TF] loading model ...")
 start_time = time.time()
 # Load saved model and build the detection function
 detect_fn = tf.saved_model.load(conf["model"])
 end_time = time.time()
 elapsed_time = end_time - start_time
-print("[INFO] model loaded ... took {} seconds".format(elapsed_time))
+print("[TF] model loaded ... took {} seconds".format(elapsed_time))
 
 # Load labelmap
 category_index = label_map_util.create_category_index_from_labelmap(conf["label"],
@@ -135,7 +136,7 @@ for i in range(len(scores)):
                 plate_num = ocr_plate_recognition.recognize_plate(licence_img)
                 cv2.putText(image_np, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
                 if plate_num != "":
-                    print("[INFO] licence recognition = {}".format(plate_num))
+                    print("[TF] licence recognition = {}".format(plate_num))
 
 '''
 Display image

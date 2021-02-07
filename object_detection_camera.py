@@ -35,6 +35,7 @@ import argparse
 import json
 import pathlib
 import time
+import datetime
 
 # utils functions for tesseract ocr plate recognition
 import ocr_plate_recognition
@@ -65,13 +66,13 @@ if (conf["use_gps"]):
 '''
 Load model and labels
 '''
-print("[INFO] loading model ...")
+print("[TF] loading model ...")
 start_time = time.time()
 # Load saved model and build the detection function
 detect_fn = tf.saved_model.load(conf["model"])
 end_time = time.time()
 elapsed_time = end_time - start_time
-print("[INFO] model loaded ... took {} seconds".format(elapsed_time))
+print("[TF] model loaded ... took {} seconds".format(elapsed_time))
 
 # Load labelmap
 category_index = label_map_util.create_category_index_from_labelmap(conf["label"],
@@ -86,7 +87,7 @@ vs = VideoStream(usePiCamera=conf["use_picamera"],
                  resolution=tuple(conf["resolution"]),
                  framerate=conf["fps"]).start()
 
-print("[INFO] warming up camera...")
+print("[TF] warming up camera...")
 time.sleep(conf["camera_warmup_time"])
 fps = FPS().start()
     
@@ -94,7 +95,7 @@ fps = FPS().start()
 writer = None
 # prepare variables for spatial dimensions of the frames
 h, w = None, None
-print("[INFO] starting video from camera ...")
+print("[TF] starting video from camera ...")
 
 '''
 Prepare DB
@@ -107,9 +108,9 @@ if conn != None:
     db_utils.create_recordings_table(conn)
     # Create (if not exists) DETECTIONS table
     db_utils.create_detections_table(conn)
-    print("[INFO] DB configured")
+    print("[TF] DB configured")
 else:
-    print("[INFO] error while configuring DB")
+    print("[TF] error while configuring DB")
 
 # Generate recording entry name
 recording_name = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
@@ -120,7 +121,7 @@ recording_id = db_utils.insert_recording(conn, recording_name)
 Input video 
 '''
 # Name for generated videofile
-recording_path = conf["video_camera_output"] + "/" + recording_name + ".mp4" 
+recording_path = conf["video_camera_output"] + "/" + recording_name + ".avi" 
 
 # variable for counting frames
 f_count = 0
@@ -206,7 +207,7 @@ while True:
                     plate_num = ocr_plate_recognition.recognize_plate(licence_img)
                     cv2.putText(frame_np, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
                     if plate_num != "":
-                        print("[INFO] licence recognition = {}".format(plate_num))
+                        print("[TF] licence recognition = {}".format(plate_num))
                         if (i-1) >= 0:
                             db_detections[plate_num] = category_index[int(classes[i-1])]['name']
                         else:
@@ -264,11 +265,11 @@ end_time = time.time()
 
 # stop the timer and display FPS information
 fps.stop()
-print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
-print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
+print("[TF] elasped time: {:.2f}".format(fps.elapsed()))
+print("[TF] approx. FPS: {:.2f}".format(fps.fps()))
 
 # do a bit of cleanup
-print("[INFO] cleaning up...")
+print("[TF] cleaning up...")
 # release video reader and writer
 cv2.destroyAllWindows()
 vs.stop()

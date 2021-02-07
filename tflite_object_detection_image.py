@@ -51,17 +51,17 @@ conf = json.load(open(args["conf"]))
 '''
 Load model and labels
 '''
-print("[INFO] loading model ...")
+print("[TF_LITE] loading model ...")
 start_time = time.time()
 
 # LOAD TFLITE MODEL
 use_tpu = conf["use_tpu"]
 if use_tpu == 1:
-    print("[INFO] use_tpu true")
+    print("[TF_LITE] using TPU")
     interpreter = tflite.Interpreter(model_path=conf["tflite_model_tpu"], 
                                      experimental_delegates=[load_delegate('libedgetpu.so.1.0')])
 else:
-    print("[INFO] use_tpu false")
+    print("[TF_LITE] use_tpu false")
     interpreter = tflite.Interpreter(model_path=conf["tflite_model"])
 
 interpreter.allocate_tensors()
@@ -69,11 +69,11 @@ interpreter.allocate_tensors()
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 
-print("[INFO] input details: {}".format(input_details))
+print("[TF_LITE] input details: {}".format(input_details))
 
 end_time = time.time()
 elapsed_time = end_time - start_time
-print("[INFO] model loaded ... took {} seconds".format(elapsed_time))
+print("[TF_LITE] model loaded ... took {} seconds".format(elapsed_time))
 
 # LOAD LABELS
 with open(conf["tflite_label"], 'r') as f:
@@ -95,7 +95,7 @@ image_height, image_width = image.shape[:2]
 image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 image_resized = cv2.resize(image_rgb, (width, height))
 input_data = np.expand_dims(image_resized, axis=0)
-print("[INFO] image loaded from file ...")
+print("[TF_LITE] image loaded from file ...")
 
 '''
 Run inference
@@ -158,7 +158,7 @@ for i in range(len(scores)):
                 plate_num = ocr_plate_recognition.recognize_plate(licence_img)
                 cv2.putText(image, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
                 if plate_num != "":
-                    print("[INFO] licence recognition = {}".format(plate_num))
+                    print("[TF_LITE] licence recognition = {}".format(plate_num))
 
 '''
 Display image

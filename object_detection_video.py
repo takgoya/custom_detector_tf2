@@ -66,13 +66,13 @@ if (conf["use_gps"]):
 '''
 Load model and labels
 '''
-print("[INFO] loading model ...")
+print("[TF] loading model ...")
 start_time = time.time()
 # Load saved model and build the detection function
 detect_fn = tf.saved_model.load(conf["model"])
 end_time = time.time()
 elapsed_time = end_time - start_time
-print("[INFO] model loaded ... took {} seconds".format(elapsed_time))
+print("[TF] model loaded ... took {} seconds".format(elapsed_time))
 
 # Load labelmap
 category_index = label_map_util.create_category_index_from_labelmap(conf["label"],
@@ -81,7 +81,7 @@ category_index = label_map_util.create_category_index_from_labelmap(conf["label"
 '''
 Input video 
 '''
-print("[INFO] loading video from file ...")
+print("[TF] loading video from file ...")
 
 # load input video
 vs = cv2.VideoCapture(conf["video_input"])
@@ -95,11 +95,11 @@ h, w = None, None
 try:
     prop = cv2.CAP_PROP_FRAME_COUNT
     total = int(vs.get(prop))
-    print("[INFO] {} total frames in video".format(total))
+    print("[TF] {} total frames in video".format(total))
 # an error occurred while trying to determine the total number of frames in the video file
 except:
-    print("[INFO] could not determine # of frames in video")
-    print("[INFO] no approx. completion time can be provided")
+    print("[TF] could not determine # of frames in video")
+    print("[TF] no approx. completion time can be provided")
     total = -1
 
 '''
@@ -113,9 +113,9 @@ if conn != None:
     db_utils.create_recordings_table(conn)
     # Create (if not exists) DETECTIONS table
     db_utils.create_detections_table(conn)
-    print("[INFO] DB configured")
+    print("[TF] DB configured")
 else:
-    print("[INFO] error while configuring DB")
+    print("[TF] error while configuring DB")
 
 # Generate recording entry name
 recording_name = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
@@ -126,7 +126,7 @@ recording_id = db_utils.insert_recording(conn, recording_name)
 Read frames in the loop
 '''
 # Name for generated videofile
-recording_path = conf["video_output"] + "/" + recording_name + ".mp4" 
+recording_path = conf["video_output"] + "/" + recording_name + ".avi" 
 
 # variable for counting frames
 f_count = 0
@@ -268,13 +268,13 @@ Finish
 end_time = time.time()
 
 # print final results
-print("[INFO] total number of frames", f_count)
-print("[INFO] total amount of time {:.5f} seconds".format(end_time - start_time))
-print("[INFO] fps:", round((f_count / (end_time - start_time)), 1))
+print("[TF] total number of frames", f_count)
+print("[TF] total amount of time {:.5f} seconds".format(end_time - start_time))
+print("[TF] fps:", round((f_count / (end_time - start_time)), 1))
 print()
 
 # do a bit of cleanup
-print("[INFO] cleaning up...")
+print("[TF] cleaning up...")
 # release video reader and writer
 cv2.destroyAllWindows()
 vs.release()

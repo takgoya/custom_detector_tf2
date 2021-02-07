@@ -64,12 +64,13 @@ if (conf["use_gps"]):
 '''
 Load model and labels
 '''
-print("[INFO] loading model ...")
+print("[TF_LITE] loading model ...")
 start_time = time.time()
 
 # LOAD TFLITE MODEL
 use_tpu = conf["use_tpu"]
 if use_tpu == 1:
+    print("[TF_LITE] using TPU")
     interpreter = tflite.Interpreter(model_path=conf["tflite_model_tpu"], 
                                      experimental_delegates=[load_delegate('libedgetpu.so.1.0')])
 else:
@@ -88,7 +89,7 @@ width = input_details[0]['shape'][2]
 
 end_time = time.time()
 elapsed_time = end_time - start_time
-print("[INFO] model loaded ... took {} seconds".format(elapsed_time))
+print("[TF_LITE] model loaded ... took {} seconds".format(elapsed_time))
 
 # LOAD LABELS
 with open(conf["tflite_label"], 'r') as f:
@@ -105,9 +106,9 @@ if conn != None:
     db_utils.create_recordings_table(conn)
     # Create (if not exists) DETECTIONS table
     db_utils.create_detections_table(conn)
-    print("[INFO] DB configured")
+    print("[TF_LITE] DB configured")
 else:
-    print("[INFO] error while configuring DB")
+    print("[TF_LITE] error while configuring DB")
 
 # Generate recording entry name
 recording_name = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
@@ -123,7 +124,7 @@ vs = VideoStream(usePiCamera=conf["use_picamera"],
                  resolution=tuple(conf["resolution"]),
                  framerate=conf["fps"]).start()
 
-print("[INFO] warming up camera...")
+print("[TF_LITE] warming up camera...")
 time.sleep(conf["camera_warmup_time"])
 fps = FPS().start()
     
@@ -131,13 +132,16 @@ fps = FPS().start()
 writer = None
 # prepare variables for spatial dimensions of the frames
 h, w = None, None
-print("[INFO] starting video from camera ...")
+print("[TF_LITE] starting video from camera ...")
 
 # prepare variable for writer that we will use to write processed frames
 writer = None
 
-# Name for generated videofile
-recording_path = conf["video_camera_output"] + "/" + recording_name + ".avi" 
+if use_tpu == 1:
+    # Name for generated videofile
+    recording_path = conf["video_output"] + "/" + recording_name + "(tf_lite_tpu).avi"
+else:
+    recording_path = conf["video_output"] + "/" + recording_name + "(tf_lite).avi"
 
 '''
 Read frames in the loop
@@ -226,14 +230,14 @@ while True:
                     plate_num = ocr_plate_recognition.recognize_plate(licence_img)
                     cv2.putText(frame, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
                     if plate_num != "":
-                        print("[INFO] licence recognition = {}".format(plate_num))
+                        print("[TF_LITE] licence recognition = {}".format(plate_num))
                         if (i-1) >= 0:
                             db_detections[plate_num] = category_index[int(classes[i-1])]
                         else:
                             db_detections[plate_num] = category_index[int(classes[i+1])]
     
-    #cv2.namedWindow("Camera Detections", cv2.WINDOW_NORMAL)
-    #cv2.imshow("Camera Detections", frame)
+    cv2.namedWindow("Camera Detections", cv2.WINDOW_NORMAL)
+    cv2.imshow("Camera Detections", frame)
     
     fps.update()
 
@@ -256,18 +260,19 @@ while True:
     '''
     Insert into DB
     '''
-    # get gps position
-    gps_lat = gps_lon = 0
-    if (conf["use_gps"]):
-        gps_lat, gps_lon = gps_utils.get_position(gps_socket, data_stream)
+    if any(db_detections):
+        # get gps position
+        gps_lat = gps_lon = 0
+        if (conf["use_gps"]):
+            gps_lat, gps_lon = gps_utils.get_position(gps_socket, data_stream)
 
-    # get detection time
-    detection_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
+        # get detection time
+        detection_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
 
-    # add entry to db
-    for key, value in db_detections.items():
-        detection = (recording_id, value, key, gps_lat, gps_lon, elapsed_time, f_count, detection_datetime)
-        db_utils.insert_detection(conn, detection)
+        # add entry to db
+        for key, value in db_detections.items():
+            detection = (recording_id, value, key, gps_lat, gps_lon, elapsed_time, f_count, detection_datetime)
+            db_utils.insert_detection(conn, detection)
 
     '''
     Break from loop
@@ -290,11 +295,11 @@ end_time = time.time()
 
 # stop the timer and display FPS information
 fps.stop()
-print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
-print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
+print("[TF_LITE] elasped time: {:.2f}".format(fps.elapsed()))
+print("[TF_LITE] approx. FPS: {:.2f}".format(fps.fps()))
 
 # do a bit of cleanup
-print("[INFO] cleaning up...")
+print("[TF_LITE] cleaning up...")
 # release video reader and writer
 cv2.destroyAllWindows()
 vs.stop()

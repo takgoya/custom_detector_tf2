@@ -64,12 +64,13 @@ if (conf["use_gps"]):
 '''
 Load model and labels
 '''
-print("[INFO] loading model ...")
+print("[TF_LITE] loading model ...")
 start_time = time.time()
 
 # LOAD TFLITE MODEL
 use_tpu = conf["use_tpu"]
 if use_tpu == 1:
+    print("[TF_LITE] using TPU")
     interpreter = tflite.Interpreter(model_path=conf["tflite_model_tpu"], 
                                      experimental_delegates=[load_delegate('libedgetpu.so.1.0')])
 else:
@@ -80,7 +81,7 @@ interpreter.allocate_tensors()
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 
-print("[INFO] input details: {}".format(input_details))
+print("[TF_LITE] input details: {}".format(input_details))
 
 input_mean = 127.5
 input_std = 127.5
@@ -90,7 +91,7 @@ width = input_details[0]['shape'][2]
 
 end_time = time.time()
 elapsed_time = end_time - start_time
-print("[INFO] model loaded ... took {} seconds".format(elapsed_time))
+print("[TF_LITE] model loaded ... took {} seconds".format(elapsed_time))
 
 # LOAD LABELS
 with open(conf["tflite_label"], 'r') as f:
@@ -107,9 +108,9 @@ if conn != None:
     db_utils.create_recordings_table(conn)
     # Create (if not exists) DETECTIONS table
     db_utils.create_detections_table(conn)
-    print("[INFO] DB configured")
+    print("[TF_LITE] DB configured")
 else:
-    print("[INFO] error while configuring DB")
+    print("[TF_LITE] error while configuring DB")
 
 # Generate recording entry name
 recording_name = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")
@@ -119,7 +120,7 @@ recording_id = db_utils.insert_recording(conn, recording_name)
 '''
 Input video 
 '''
-print("[INFO] loading video from file ...")
+print("[TF_LITE] loading video from file ...")
 
 # load input video
 vs = cv2.VideoCapture(conf["video_input"])
@@ -129,18 +130,21 @@ frame_height = int(vs.get(cv2.CAP_PROP_FRAME_HEIGHT))
 # prepare variable for writer that we will use to write processed frames
 writer = None
 
-# Name for generated videofile
-recording_path = conf["video_output"] + "/" + recording_name + ".avi" 
+if use_tpu == 1:
+    # Name for generated videofile
+    recording_path = conf["video_output"] + "/" + recording_name + "(tf_lite_tpu).avi"
+else:
+    recording_path = conf["video_output"] + "/" + recording_name + "(tf_lite).avi"
 
 # try to determine the total number of frames in the video file
 try:
     prop = cv2.CAP_PROP_FRAME_COUNT
     total = int(vs.get(prop))
-    print("[INFO] {} total frames in video".format(total))
+    print("[TF_LITE] {} total frames in video".format(total))
 # an error occurred while trying to determine the total number of frames in the video file
 except:
-    print("[INFO] could not determine # of frames in video")
-    print("[INFO] no approx. completion time can be provided")
+    print("[TF_LITE] could not determine # of frames in video")
+    print("[TF_LITE] no approx. completion time can be provided")
     total = -1
 
 '''
@@ -223,7 +227,6 @@ while True:
 
             # Draw white box to put label text in
             cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2) # Draw label text   
-
             plate_num = ""
             #Extract the detected number plate
             if object_name == "licence":
@@ -233,7 +236,7 @@ while True:
                     plate_num = ocr_plate_recognition.recognize_plate(licence_img)
                     cv2.putText(frame, plate_num, (xmin, ymax + 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (10, 255, 0), 2)
                     if plate_num != "":
-                        print("[INFO] licence recognition = {}".format(plate_num))
+                        print("[TF_LITE] licence recognition = {}".format(plate_num))
                         if (i-1) >= 0:
                             db_detections[plate_num] = category_index[int(classes[i-1])]
                         else:
@@ -278,13 +281,13 @@ Finish
 end_time = time.time()
 
 # print final results
-print("[INFO] total number of frames", f_count)
-print("[INFO] total amount of time {:.5f} seconds".format(end_time - start_time))
-print("[INFO] fps:", round((f_count / (end_time - start_time)), 1))
+print("[TF_LITE] total number of frames", f_count)
+print("[TF_LITE] total amount of time {:.5f} seconds".format(end_time - start_time))
+print("[TF_LITE] fps:", round((f_count / (end_time - start_time)), 1))
 print()
 
 # do a bit of cleanup
-print("[INFO] cleaning up...")
+print("[TF_LITE] cleaning up...")
 # release video reader and writer
 cv2.destroyAllWindows()
 vs.release()
