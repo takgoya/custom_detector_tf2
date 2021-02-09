@@ -59,7 +59,7 @@ conf = json.load(open(args["conf"]))
 GPS
 '''
 if (conf["use_gps"]):
-    gps_socket, data_stream = gps_utils.init_gps()
+    gps = gps_utils.init_gps()
     
 '''
 Load model and labels
@@ -264,7 +264,7 @@ while True:
         # get gps position
         gps_lat = gps_lon = 0
         if (conf["use_gps"]):
-            gps_lat, gps_lon = gps_utils.get_position(gps_socket, data_stream)
+            gps_lat, gps_lon = gps_utils.getPositionData(gps)
 
         # get detection time
         detection_datetime = datetime.datetime.now().strftime("%d%m%Y-%H%M%S")

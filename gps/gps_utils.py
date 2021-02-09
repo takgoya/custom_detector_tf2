@@ -7,21 +7,62 @@
 #   Date: January 2021                                                                                   #
 #                                                                                                        #
 ##########################################################################################################
-from gps3 import gps3
-import sys
+
+#######
+# The code used in this library is extracted from:
+# https://maker.pro/raspberry-pi/tutorial/how-to-read-gps-data-with-python-on-a-raspberry-pi
+#######
+
+import serial
+SERIAL_PORT = "/dev/serial0"
 
 def init_gps():
-    gps_socket = gps3.GPSDSocket()
-    data_stream = gps3.DataStream()
-    gps_socket.connect()
-    gps_socket.watch()
-    return gps_socket, data_stream
+    gps = serial.Serial(SERIAL_PORT, baudrate = 9600, timeout = 0.5)
+    return gps
 
-def get_position(gps_socket, data_stream):
-    lat = lon = 0
-    for new_data in gps_socket:
-        if new_data:
-            data_stream.unpack(new_data)
-            lat = data_stream.TPV["lat"]
-            lon = data_stream.TPV["lon"]
-    return lat, lon
+# In the NMEA message, the position gets transmitted as:
+# DDMM.MMMMM, where DD denotes the degrees and MM.MMMMM denotes
+# the minutes. However, I want to convert this format to the following:
+# DD.MMMM. This method converts a transmitted string to the desired format
+def formatDegreesMinutes(coordinates, digits):
+    
+    parts = coordinates.split(".")
+
+    if (len(parts) != 2):
+        return coordinates
+
+    if (digits > 3 or digits < 2):
+        return coordinates
+    
+    left = parts[0]
+    right = parts[1]
+    degrees = str(left[:digits])
+    minutes = str(right[:3])
+
+    return degrees + "." + minutes
+
+# This method reads the data from the serial port, the GPS dongle is attached to,
+# and then parses the NMEA messages it transmits.
+# gps is the serial port, that's used to communicate with the GPS adapter
+def getPositionData(gps):
+    latitude = 0
+    longitude = 0
+    data = gps.readline()
+    message = data[0:6]
+    if (message == "$GPRMC"):
+        # GPRMC = Recommended minimum specific GPS/Transit data
+        # Reading the GPS fix data is an alternative approach that also works
+        parts = data.split(",")
+        if parts[2] == 'V':
+            # V = Warning, most likely, there are no satellites in view...
+            print ("GPS receiver warning")
+        else:
+            # Get the position data that was transmitted with the GPRMC message
+            longitude = formatDegreesMinutes(parts[5], 3)
+            latitude = formatDegreesMinutes(parts[3], 2)
+            print ("Your position: lon = " + str(longitude) + ", lat = " + str(latitude))
+    else:
+        # Handle other NMEA messages and unsupported strings
+        print ("No GPS data")
+    
+    return latitude, longitude
