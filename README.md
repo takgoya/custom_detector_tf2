@@ -1,6 +1,7 @@
 # custom_detector_tf2
-Customized Object Detector from TensorFlow 2 Object Detection API
-TF2 model trained with custom dataset (transfer learning applied)
+Customized Object Detector from TensorFlow 2 Object Detection API.
+
+TF2 model trained with custom dataset (transfer learning applied).
 
 - TF2 object detection API --> **TF2_object_detection.ipynb**
 
