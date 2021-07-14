@@ -15,9 +15,9 @@ TF2 model trained with custom dataset (transfer learning applied)
   - detecciones sobre una imágen --> **tflite_object_detection_image.py**
 
 - Ejecutar modelos TF
-  - detecciones sobre cámara en vivo --> **tflite_object_detection_camera.py**
-  - detecciones sobre archivo de vídeo --> **tflite_object_detection_video.py**
-  - detecciones sobre una imágen --> **tflite_object_detection_image.py**
+  - detecciones sobre cámara en vivo --> **object_detection_camera.py**
+  - detecciones sobre archivo de vídeo --> **object_detection_video.py**
+  - detecciones sobre una imágen --> **object_detection_image.py**
 
 - Ficheros de configuración
   - tflite --> **conf_tflite.json**
